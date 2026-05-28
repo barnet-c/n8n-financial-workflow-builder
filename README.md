@@ -1,4 +1,4 @@
-# n8n-financial-workflow-builder# n8n Financial Workflow Builder — Claude Skill
+# n8n Financial Workflow Builder - Claude Skill
 
 A Claude Code skill that reads any financial process document (PDF, diagram, or description) and automatically builds and deploys a fully structured n8n workflow.
 
