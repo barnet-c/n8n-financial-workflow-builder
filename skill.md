@@ -241,20 +241,6 @@ Always write the JSON to a temp file first, then POST — avoids escaping issues
 
 ---
 
-## Example — Completed Cash Redemption Workflow
-
-Reference: workflow ID `8ucDfU0J47x75AQN` on http://localhost:5678
-This is the BlackRock iShares Bitcoin ETF Cash Redemption Model built from the PDF.
-
-It contains:
-- 15 functional nodes (trigger, 10 step nodes, 1 IF, 1 noOp, 1 complete, 1 rejected)
-- 3 sticky notes (T-day header, T+1 header, parties legend)
-- Full T and T+1 flow across all 8 parties
-
-Use this as a reference template for similar workflows.
-
----
-
 ## Checklist Before Deploying
 
 - [ ] Every step from the document has a node
