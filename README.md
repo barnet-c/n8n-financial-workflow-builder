@@ -1,4 +1,4 @@
-# n8n Financial Workflow Builder — Claude Skill
+# n8n Financial Workflow Builder - Claude Skill
 
 A Claude Code skill that reads any financial process document (PDF, diagram, or description) and automatically builds and deploys a fully structured n8n workflow.
 
@@ -30,13 +30,13 @@ Give it a financial process document and it will:
 
 ## Installation
 
-### Option 1 — Claude Code terminal (recommended)
+### Option 1 - Claude Code terminal (recommended)
 If you are using Claude Code in the terminal, run:
 ```
 /plugin install barnet-c/n8n-financial-workflow-builder
 ```
 
-### Option 2 — VS Code chat panel (manual)
+### Option 2 - VS Code chat panel (manual)
 If you are using Claude inside VS Code chat, `/plugin install` does not work there. Install manually instead:
 
 1. Download `skill.md` from this repo
