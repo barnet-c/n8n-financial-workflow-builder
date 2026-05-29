@@ -33,7 +33,7 @@ Give it a financial process document and it will:
 ### Option 1 — Claude Code terminal (recommended)
 If you are using Claude Code in the terminal, run:
 ```
-/plugin install <your-github-username>/n8n-financial-workflow-builder
+/plugin install barnet-c/n8n-financial-workflow-builder
 ```
 
 ### Option 2 — VS Code chat panel (manual)
