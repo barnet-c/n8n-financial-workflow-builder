@@ -1,253 +1,217 @@
 ---
-name: n8n-financial-workflow-builder
-description: Build n8n workflows from financial process documents, diagrams, or descriptions. Use this skill when the user asks to build, create, or model a financial process as an n8n workflow — such as ETF creation/redemption models, cash flow processes, trade settlement flows, fund operations, or any multi-party financial lifecycle. Triggers on phrases like "build a workflow from this", "model this process in n8n", "create an n8n workflow for this financial process", or when a PDF/diagram of a financial process is provided.
+name: etf-prospectus-reader
+description: Reads any fund or ETF prospectus (S-1, S-1/A, offering document, or similar legal filing) and extracts the creation and redemption mechanics into a clean, structured process flow document. Use this skill when the user provides a prospectus PDF, S-1 filing, or legal document and wants to understand or model the creation/redemption process. Triggers on phrases like "read this prospectus", "extract the workflow from this S-1", "make a process doc from this filing", "summarise the creation/redemption mechanics". Output is a structured markdown document suitable for direct input into the n8n-financial-workflow-builder skill.
 ---
 
-# n8n Financial Process Workflow Builder
+# ETF / Fund Prospectus Reader — Process Flow Extractor
 
-Builds n8n workflows that model financial processes from documents, PDFs, or diagrams.
+Reads any fund or ETF prospectus and converts dense legal text into a clean, structured process flow document that can be used directly as input for the n8n-financial-workflow-builder skill.
+
+Works with any product type: Bitcoin ETFs, equity ETFs, bond funds, commodity trusts, crypto funds, or any other pooled investment vehicle that has a creation/redemption mechanism.
 
 ---
 
 ## What This Skill Does
 
-Reads a financial process document or diagram and automatically:
-1. Identifies all parties involved
-2. Maps every step in the process
-3. Identifies what is being exchanged (cash, assets, messages, instructions)
-4. Identifies timing (same day, T+1, T+2 etc.)
-5. Builds and deploys a complete n8n workflow via the API
+Takes a prospectus (S-1, S-1/A, fund document, or any legal filing) and outputs:
+1. A **Product Summary** — what the fund holds, how it's structured
+2. A **Parties List** — every entity involved and their role
+3. A **Creation Flow** — numbered steps with timing, parties, actions, asset movements
+4. A **Redemption Flow** — numbered steps with timing, parties, actions, asset movements
+5. A **Special Mechanisms** section — anything structurally unique to this product
 
 ---
 
-## Step 1 — Read and Understand the Document
+## Step 1 — Read and Locate the Relevant Sections
 
-When given a PDF or diagram, extract:
+Prospectus documents are long. Scan the table of contents and focus only on:
 
-### Parties
-List every entity involved. Common ones in financial workflows:
-- Market Makers (regulated broker-dealer side AND offshore crypto side)
-- Authorized Participant (AP)
-- ETF Issuer / Fund Manager
-- Transfer Agent & Cash Custodian
-- Bitcoin / Asset Custodian
-- Prime Broker
-- Listing Exchange / Spot Exchanges
-- Clearing House / DTC
+### Sections to find and read:
+- **"Creation and Redemption of Shares"** or **"Creation and Issuance"**
+- **"Basket"** definitions — Creation Basket / Redemption Basket
+- **"Authorized Participants"** section
+- **"Custodian"** / **"Trustee"** / **"Administrator"** roles
+- Any **financing, credit, or prepay** mechanisms
+- **"Settlement"** timing sections
+- Any **diagrams or flow descriptions** embedded in the document
 
-### Steps
-Number every step in order. For each step identify:
-- **Who** is acting (the party)
-- **What** they are doing (the action)
-- **What moves** — is it an asset (cash, Bitcoin, shares) or just a message/instruction?
-- **When** — which day/time (T, T+1, T+2 etc.)
-- **Where** it goes (destination party or venue)
-
-### Flow Types
-- `Asset Movement` — actual money, Bitcoin, shares physically moving
-- `Messaging` — instructions, approvals, confirmations (no asset moves)
-- `Asset Movement + Messaging` — both happen together
+### Sections to skip:
+- Risk factors
+- Tax sections
+- Legal opinions
+- Underwriting
+- Financial statements
+- Fee tables (unless a fee directly affects the flow)
 
 ---
 
-## Step 2 — Design the Workflow Structure
+## Step 2 — Extract All Parties
 
-### Node types to use:
+Read the document and list every entity that appears in the creation/redemption sections. Do not assume any parties — only list what the document states.
 
-| Purpose | n8n Node |
-|---|---|
-| Start the workflow | `n8n-nodes-base.manualTrigger` |
-| Each process step | `n8n-nodes-base.set` (typeVersion 3.4) |
-| Approval / decision point | `n8n-nodes-base.if` (typeVersion 2) |
-| Day separator (T to T+1 etc.) | `n8n-nodes-base.noOp` (typeVersion 1) |
-| Labels and context | `n8n-nodes-base.stickyNote` (typeVersion 1) |
-| End / completion | `n8n-nodes-base.set` (typeVersion 3.4) |
+For each party record:
+- A short name (used throughout the document)
+- Their full legal name (as stated in the prospectus)
+- Their role in the creation/redemption process
 
-### Layout rules:
-- Arrange nodes **left to right** following the process order
-- Use **y position** to separate time periods (T = y:280, T+1 = y:580 or continue right)
-- Space nodes **220px apart** on the x axis
-- Put sticky notes **above** the relevant section (lower y value)
-- Put rejected/error branches **below** the main flow (higher y value)
-
-### Positions guide:
-- Trigger: [0, 400]
-- Steps continue at +220 on x axis
-- Day separator (noOp): place between last T-day step and first T+1 step
-- Sticky note headers: y = 160-200 (above the nodes)
-- Rejected branch: y = 540-600
-
----
-
-## Step 3 — Build the Workflow JSON
-
-### Set node format (each process step):
-```json
-{
-  "parameters": {
-    "assignments": {
-      "assignments": [
-        {"id": "unique-id", "name": "step", "value": "1", "type": "string"},
-        {"id": "unique-id", "name": "timing", "value": "T", "type": "string"},
-        {"id": "unique-id", "name": "party", "value": "Name of party acting", "type": "string"},
-        {"id": "unique-id", "name": "action", "value": "Full description of what they do", "type": "string"},
-        {"id": "unique-id", "name": "flowType", "value": "Asset Movement OR Messaging", "type": "string"},
-        {"id": "unique-id", "name": "status", "value": "SNAKE_CASE_STATUS_CODE", "type": "string"}
-      ]
-    },
-    "includeOtherFields": true,
-    "options": {}
-  },
-  "id": "step-node-001",
-  "name": "Step 1 [T] - Party: Action Description",
-  "type": "n8n-nodes-base.set",
-  "typeVersion": 3.4,
-  "position": [220, 400]
-}
+```
+| Short Name | Full Legal Name | Role |
+|---|---|---|
+| [name] | [full legal name from doc] | [role as described in doc] |
 ```
 
-Note: The **first** Set node after the trigger does NOT need `"includeOtherFields": true`. All subsequent ones do.
+Common party types to look for (names will vary by product):
+- The entity that submits creation/redemption orders (often called "Authorized Participant")
+- The entity that manages or sponsors the fund
+- The entity that holds the underlying assets (custodian)
+- The entity that holds cash
+- The entity that executes trades
+- The entity that issues or cancels shares (clearing)
+- Any financing or credit provider
+- Any administrator or transfer agent
 
-### IF node format (approval gates):
-```json
-{
-  "parameters": {
-    "conditions": {
-      "options": {"caseSensitive": true, "leftValue": "", "typeValidation": "strict"},
-      "conditions": [
-        {
-          "id": "cond-001",
-          "leftValue": "={{ $json.approved }}",
-          "rightValue": "true",
-          "operator": {"type": "string", "operation": "equals"}
-        }
-      ],
-      "combinator": "and"
-    },
-    "options": {}
-  },
-  "id": "if-node-001",
-  "name": "Order Approved?",
-  "type": "n8n-nodes-base.if",
-  "typeVersion": 2,
-  "position": [660, 400]
-}
-```
+---
 
-IF node outputs: index 0 = true/yes branch, index 1 = false/no branch
+## Step 3 — Map the Creation Flow
 
-### Sticky note format:
-```json
-{
-  "parameters": {
-    "content": "## Title\n\nContent here",
-    "height": 180,
-    "width": 500,
-    "color": 3
-  },
-  "id": "sticky-note-001",
-  "name": "Section Label",
-  "type": "n8n-nodes-base.stickyNote",
-  "typeVersion": 1,
-  "position": [-20, 160]
-}
-```
+Extract every step from order submission through to share issuance.
 
-Colors: 1=grey, 2=brown, 3=green, 4=blue, 5=purple, 6=red, 7=orange
+For each step identify:
+- **Step number** (sequential)
+- **Timing** — which day: T (order day), T+1, T+2, or same-day
+- **Acting party** — who initiates this step
+- **Receiving party** — who receives it (if applicable)
+- **Action** — plain English description of exactly what happens
+- **What moves** — what asset or instruction is exchanged (cash, shares, the underlying asset, an instruction, or nothing)
+- **Flow type** — one of:
+  - `Asset Movement` — actual assets physically moving (money, securities, crypto)
+  - `Messaging` — instructions, approvals, confirmations (nothing moves)
+  - `Asset Movement + Messaging` — both happen together
 
-### Connections format:
-```json
-"connections": {
-  "NodeName": {
-    "main": [
-      [{"node": "NextNodeName", "type": "main", "index": 0}]
-    ]
-  },
-  "IF Node Name": {
-    "main": [
-      [{"node": "TrueBranchNode", "type": "main", "index": 0}],
-      [{"node": "FalseBranchNode", "type": "main", "index": 0}]
-    ]
-  }
-}
+### Creation mechanics to watch for:
+- **Cash creation** — the AP delivers cash and the fund buys the underlying asset
+- **In-kind creation** — the AP delivers the underlying asset directly
+- **Partial cash** — a mix of cash and assets
+- **Financing / Prepay / Trade Credit** — fund borrows something on T and repays on T+1
+- **Approval gates** — does any party need to approve before the flow continues?
+
+---
+
+## Step 4 — Map the Redemption Flow
+
+Same format as creation but in reverse — from share surrender through to asset delivery.
+
+### Redemption mechanics to watch for:
+- **In-kind redemption** — AP receives the underlying asset
+- **Cash redemption** — fund sells the asset, AP receives cash
+- **Who decides the type** — can the AP choose, or does the Sponsor decide?
+- **Financing on redemption** — does the fund borrow on T to release assets before AP pays?
+
+---
+
+## Step 5 — Identify Special Mechanisms
+
+Note anything that makes this fund structurally different from a standard creation/redemption model.
+
+Ask these questions while reading:
+- Is there any intraday financing or credit involved?
+- Is there an offshore entity or a two-sided structure (regulated + unregulated)?
+- Does the fund write options or hold derivatives?
+- Is there a prepayment step before the main asset exchange?
+- Is the basket composition unusual (mixed assets, synthetic exposure)?
+- Are there any same-day settlement features that differ from the norm?
+
+Describe each mechanism in plain English — what it is, why it exists, and how it changes the flow.
+
+---
+
+## Step 6 — Output the Structured Document
+
+Produce a document in this exact format:
+
+```markdown
+# [Product Name] — Process Flow Document
+
+## Product Summary
+- **Fund Name:** [full name from prospectus]
+- **Ticker:** [ticker if mentioned]
+- **Underlying Asset:** [what the fund holds]
+- **Creation Type:** [Cash / In-Kind / Either / At Sponsor's discretion]
+- **Redemption Type:** [In-Kind / Cash / Either / At Sponsor's discretion]
+- **Settlement:** [T+1 / T+2 / same day]
+- **Special Mechanism:** [describe briefly, or "None"]
+
+---
+
+## Parties
+
+| Short Name | Full Legal Name | Role |
+|---|---|---|
+| [short] | [full legal name] | [role] |
+
+---
+
+## Creation Flow
+
+### T — Order Day
+
+**Step 1 — [Acting Party]: [Action Title]**
+- Party: [who acts]
+- Action: [plain English description]
+- What moves: [asset or "Nothing — instruction only"]
+- Flow type: [Asset Movement / Messaging / Asset Movement + Messaging]
+
+[continue for all T-day steps]
+
+---
+
+### T+1 — Settlement Day
+
+[continue for all T+1 steps in same format]
+
+---
+
+## Redemption Flow
+
+### T — Order Day
+
+[same format as creation]
+
+---
+
+### T+1 — Settlement Day
+
+[same format]
+
+---
+
+## Special Mechanisms
+
+### [Mechanism Name]
+[Plain English explanation — what it is, why it exists, how it affects the steps]
+
+---
+
+## Decision Points (Approval Gates)
+
+- [Step N] — [Party] approves/rejects — if rejected: [what happens]
+
+---
+
+## Notes and Ambiguities
+
+- [Anything the prospectus leaves vague or at Sponsor's discretion]
+- [Any steps where exact timing or party is unclear]
 ```
 
 ---
 
-## Step 4 — Deploy to n8n
+## Output Instructions
 
-### n8n API details:
-- **URL**: http://localhost:5678
-- **API endpoint**: POST http://localhost:5678/api/v1/workflows
-- **Auth header**: X-N8N-API-KEY
-
-### PowerShell deployment:
-```powershell
-$headers = @{
-    "X-N8N-API-KEY" = "<api-key>"
-    "Content-Type" = "application/json"
-}
-$body = Get-Content -Raw -Path "$env:TEMP\workflow.json" -Encoding utf8
-$response = Invoke-RestMethod -Uri "http://localhost:5678/api/v1/workflows" -Method POST -Headers $headers -Body $body -ContentType "application/json"
-Write-Output "Workflow ID: $($response.id)"
-Write-Output "URL: http://localhost:5678/workflow/$($response.id)"
-```
-
-Always write the JSON to a temp file first, then POST — avoids escaping issues.
-
----
-
-## Step 5 — What to Include in Every Workflow
-
-### Always include:
-- [ ] Manual trigger node to start the workflow
-- [ ] One Set node per process step (named clearly with step number and timing)
-- [ ] IF node for every approval or decision point
-- [ ] noOp node as a day separator between T and T+1 (or T+1 and T+2)
-- [ ] Sticky notes labelling each time period
-- [ ] Sticky note with parties legend
-- [ ] Completion node at the end
-- [ ] Rejected/failed branch off every approval IF node
-
-### Data each step node must carry:
-- `step` — step number
-- `timing` — T, T+1, T+2 etc.
-- `party` — who is acting
-- `action` — full plain English description of the action
-- `flowType` — Asset Movement / Messaging / Asset Movement + Messaging
-- `status` — SNAKE_CASE status code (e.g. ORDER_PLACED, CASH_DELIVERED)
-
----
-
-## Common Financial Process Patterns
-
-### ETF Creation/Redemption (Cash Model)
-- T-day: Order placed → Approved → Asset purchased → Custodian instructed → Trade agreed
-- T+1: Cash delivered → Asset delivered → Shares surrendered → Cash released → Position unwound
-- Key gate: Issuer approval IF node
-- Key parties: Market Maker (BD + crypto), AP, ETF Issuer, Custodian, Transfer Agent, Prime Broker
-
-### ETF Creation/Redemption (In-Kind Model)
-- Similar but assets (ETF basket securities) move instead of cash
-- No offshore entity needed — regulated broker-dealer handles directly
-
-### Trade Settlement (DVP — Delivery vs Payment)
-- Buyer sends payment simultaneously as seller delivers asset
-- Key: simultaneous exchange, single settlement day
-
-### Fund NAV Calculation
-- End of day: collect prices → calculate NAV → publish → notify APs
-- Scheduled trigger, multiple data source HTTP Request nodes
-
----
-
-## Checklist Before Deploying
-
-- [ ] Every step from the document has a node
-- [ ] Node names include step number and timing e.g. "Step 3 [T] - ..."
-- [ ] includeOtherFields: true on all Set nodes except the first
-- [ ] All connection names match node names exactly (case sensitive)
-- [ ] IF nodes have both true and false branches connected
-- [ ] Sticky notes are positioned above the relevant nodes (lower y value)
-- [ ] Workflow has a clear start (trigger) and end (completion node)
-- [ ] JSON is valid before POSTing
+- Use plain English throughout — no legal jargon
+- Only include parties and steps that are actually stated in the prospectus — do not assume
+- If the prospectus is ambiguous about a step, note it in the Ambiguities section rather than guessing
+- If there are multiple creation/redemption models described (e.g. both cash and in-kind options), produce a separate flow section for each
+- Save the document to a temp file using the Write tool — name it `<etf-name-slug>-process-flow.md` and save it to the system temp directory (use `$env:TEMP` on Windows or `/tmp` on Mac/Linux)
+- After saving, tell the user the full file path
+- After outputting the document, ask the user: **"Would you like me to now build this as an n8n workflow?"** — if yes, pass the document directly to the n8n-financial-workflow-builder skill
