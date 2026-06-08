@@ -176,21 +176,41 @@ Colors: 1=grey, 2=brown, 3=green, 4=blue, 5=purple, 6=red, 7=orange
 
 ## Step 4 — Deploy to n8n
 
+### Before deploying — ask the user for their n8n details
+
+Check if the n8n URL and API key are already known from this conversation. If not, ask:
+
+> "What is your n8n URL? (e.g. http://localhost:5678 or https://your-n8n.com)"
+> "What is your n8n API key? (Settings → API → Create API Key)"
+
+Do not assume localhost:5678 — always confirm with the user if not already provided.
+
 ### n8n API details:
-- **URL**: http://localhost:5678
-- **API endpoint**: POST http://localhost:5678/api/v1/workflows
+- **API endpoint**: POST `<n8n-url>/api/v1/workflows`
 - **Auth header**: X-N8N-API-KEY
 
 ### PowerShell deployment:
 ```powershell
+$n8nUrl = "<n8n-url>"
+$apiKey = "<api-key>"
 $headers = @{
-    "X-N8N-API-KEY" = "<api-key>"
+    "X-N8N-API-KEY" = $apiKey
     "Content-Type" = "application/json"
 }
 $body = Get-Content -Raw -Path "$env:TEMP\workflow.json" -Encoding utf8
-$response = Invoke-RestMethod -Uri "http://localhost:5678/api/v1/workflows" -Method POST -Headers $headers -Body $body -ContentType "application/json"
+$response = Invoke-RestMethod -Uri "$n8nUrl/api/v1/workflows" -Method POST -Headers $headers -Body $body -ContentType "application/json"
 Write-Output "Workflow ID: $($response.id)"
-Write-Output "URL: http://localhost:5678/workflow/$($response.id)"
+Write-Output "URL: $n8nUrl/workflow/$($response.id)"
+```
+
+### Bash / Mac / Linux deployment:
+```bash
+N8N_URL="<n8n-url>"
+API_KEY="<api-key>"
+curl -s -X POST "$N8N_URL/api/v1/workflows" \
+  -H "X-N8N-API-KEY: $API_KEY" \
+  -H "Content-Type: application/json" \
+  -d @/tmp/workflow.json
 ```
 
 Always write the JSON to a temp file first, then POST — avoids escaping issues.
