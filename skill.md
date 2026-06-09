@@ -20,6 +20,24 @@ Reads a financial process document or diagram and automatically:
 
 ---
 
+## Step 0 — Check for Multiple Workflows
+
+Before building, check if the input document contains a **"Workflows to Build"** table (produced by the etf-prospectus-reader skill). If it does:
+
+- Read the table and count how many workflows need to be built
+- Tell the user: "Found [N] workflows to build: [list names]"
+- Build and deploy each one **separately**, one after the other
+- After all are deployed, print a summary table:
+
+| # | Workflow Name | n8n URL |
+|---|---|---|
+| 1 | [name] | [url] |
+| 2 | [name] | [url] |
+
+If there is no "Workflows to Build" table, treat the document as a single workflow and proceed normally.
+
+---
+
 ## Step 1 — Read and Understand the Document
 
 When given a PDF or diagram, extract:
